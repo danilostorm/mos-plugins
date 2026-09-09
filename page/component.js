@@ -80,6 +80,21 @@ export function createPlugin({ h, ref, onMounted, onUnmounted }) {
         h('div', [button('Atualizar', refresh), button('Pausar ajustes', () => action('pause')), button('Restaurar limites anteriores', () => action('restore'))]),
         h('small', 'Pausar mantém os limites já aplicados. Restaurar aguarda margem de RAM e respeita alterações externas.'),
         config.value && h('form', { onSubmit: e => { e.preventDefault(); action('configure', config.value); } }, [
+          h('h3', 'Integração automática com as VMs do MOS'),
+          h('label', ['Usar CPU/RAM da tela de criação e edição como tetos', h('input', {
+            type: 'checkbox', checked: config.value.auto_vms, onChange: e => { config.value.auto_vms = e.target.checked; }
+          })]),
+          h('p', 'Ative uma vez para incluir VMs KVM atuais e futuras, sem cadastro duplicado. A RAM varia conforme a demanda quando o driver balloon fornece estatísticas. Para CPU sem fixação, deixe Core Pinning desmarcado no MOS. Pinning existente é preservado.'),
+          config.value.auto_vms && h('div', (state.value?.auto_vms || []).map(vm => h('div', { class: 'rg-card' }, [
+            h('b', vm.name || vm.uuid || 'Descoberta'),
+            h('p', vm.error || (vm.cpu_max + ' vCPUs • RAM até ' + fmt(vm.memory_max_mib / 1024) + ' GiB • mínimo automático ' + fmt(vm.memory_min_mib / 1024) + ' GiB')),
+            h('small', vm.note || ''),
+            vm.uuid && h('label', ['Gerenciar esta VM', h('input', { type: 'checkbox',
+              checked: !config.value.auto_vm_exclude.includes(vm.uuid),
+              onChange: e => { config.value.auto_vm_exclude = e.target.checked ? config.value.auto_vm_exclude.filter(x => x !== vm.uuid) : [...new Set([...config.value.auto_vm_exclude, vm.uuid])]; }
+            })])
+          ]))),
+          h('small', 'Salvar abaixo aplica a seleção. Desativar uma VM mantém os limites já aplicados; use Restaurar para devolvê-los.'),
           h('h3', 'Política do host'),
           h('div', { class: 'rg-grid' }, [
             select('Modo', config.value, 'mode', [['observe', 'Observar / simular'], ['automatic', 'Aplicar automaticamente'], ['paused', 'Pausado']]),
@@ -109,7 +124,7 @@ export function createPlugin({ h, ref, onMounted, onUnmounted }) {
           h('button', { type: 'submit', disabled: busy.value }, 'Salvar e aplicar política')
         ]),
         h('h3', 'Alvos e próximas decisões'),
-        table(['Alvo', 'CPU', 'RAM (MiB)', 'Próximo ajuste', 'Diagnóstico'], (state.value?.targets || []).map(t => [t.target, fmt(t.cpu), fmt(t.memory_mib), t.proposed?.join(' → '), t.error || 'OK'])),
+        table(['Alvo', 'CPU', 'RAM (MiB)', 'Próximo ajuste', 'Diagnóstico'], (state.value?.targets || []).map(t => [t.target, fmt(t.cpu), fmt(t.memory_mib), t.proposed?.join(' → '), t.error || (t.memory_safe === false ? 'RAM sem estatísticas recentes ou não habilitada' : 'OK')])),
         h('h3', 'Registro de ações'),
         table(['Hora', 'Alvo', 'Recurso', 'Destino', 'Resultado'], (state.value?.actions || []).map(a => [new Date(a.timestamp*1000).toLocaleTimeString(), a.target, a.action.resource, JSON.stringify(a.action.after), a.error || a.status])),
         h('h3', 'Histórico recente'),

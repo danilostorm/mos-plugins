@@ -12,7 +12,7 @@ from guardian import config as monitor_config
 
 DEFAULT = dict(mode="observe", profile="automatic", cooldown_seconds=60,
                forecast_seconds=60, forecast_samples=12, targets=[], monitor={},
-               data_directory="/var/lib/mos-resource-guardian")
+               data_directory="/var/lib/mos-resource-guardian", auto_vms=False, auto_vm_exclude=[])
 
 
 def number(v, lo, hi, key):
@@ -24,6 +24,8 @@ def validate(data):
     if not isinstance(data, dict) or set(data) - set(DEFAULT):
         raise ValueError("Unknown configuration fields")
     c = dict(copy.deepcopy(DEFAULT), **copy.deepcopy(data))
+    if type(c['auto_vms']) is not bool or not isinstance(c['auto_vm_exclude'], list) or any(not isinstance(x, str) or not re.fullmatch(r'[0-9a-fA-F-]{36}', x) for x in c['auto_vm_exclude']):
+        raise ValueError('Invalid automatic VM settings')
     directory = c["data_directory"]
     if not isinstance(directory, str) or not directory.startswith(("/mnt/", "/var/lib/")) or ".." in Path(directory).parts:
         raise ValueError("Data directory must be below /mnt or /var/lib")
@@ -57,7 +59,7 @@ def validate(data):
         raise ValueError("At most 32 targets")
     seen = set()
     for t in c["targets"]:
-        allowed = {"kind", "id", "priority", "cpu_min", "cpu_max", "memory_min_mib", "memory_max_mib", "memory_headroom_mib", "manage_memory", "cpu_method", "lxc_path"}
+        allowed = {"kind", "id", "priority", "cpu_min", "cpu_max", "memory_min_mib", "memory_max_mib", "memory_headroom_mib", "manage_memory", "cpu_method", "lxc_path", "memory_autoscale"}
         if not isinstance(t, dict) or set(t) - allowed:
             raise ValueError("Invalid target fields")
         if t.get("kind") not in ("vm", "docker", "lxc") or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", t.get("id", "")):
@@ -68,6 +70,9 @@ def validate(data):
         seen.add(key)
         t.setdefault("priority", 50)
         t.setdefault("manage_memory", False)
+        t.setdefault('memory_autoscale', False)
+        if type(t['memory_autoscale']) is not bool:
+            raise ValueError('Invalid autoscale flag')
         t.setdefault("cpu_method", "quota")
         t.setdefault("memory_headroom_mib", 512)
         if type(t["manage_memory"]) is not bool or t["cpu_method"] not in ("quota", "hotplug"):
@@ -190,7 +195,7 @@ class Adapter:
         if fresh["raw_"+resource] != snapshot["raw_"+resource]:
             raise ValueError("Resource changed externally; refusing stale action")
         if resource == "memory" and not raw:
-            if not fresh["memory_safe"] or value < fresh["used"] + t["memory_headroom_mib"]:
+            if not fresh["memory_safe"] or (value < fresh['memory'] and value < fresh["used"] + t["memory_headroom_mib"]):
                 raise ValueError("Fresh memory headroom check failed")
         if t["kind"] == "vm":
             if resource == "cpu":
@@ -257,12 +262,24 @@ def plan(target, snap, record, cfg, prediction):
             return "cpu", value
     # Recovery is gradual and never adds RAM without actual free host capacity.
     if record["state"] == "normal" and not record["reasons"] and not conservative:
+        if target.get('memory_autoscale') and target['manage_memory'] and snap['memory_safe']:
+            free = snap['memory'] - snap['used']
+            ceiling = min(target['memory_max_mib'], snap.get('memory_ceiling', float('inf')))
+            headroom = target['memory_headroom_mib']
+            if free < headroom and snap['memory'] < ceiling:
+                increase = min(256, ceiling-snap['memory'])
+                if record['ram_available_mib']-increase >= record['ram_reserve_mib']+cfg['monitor']['recovery_ram_mib']:
+                    return 'memory', snap['memory']+increase
+            if free > 2*headroom+256:
+                value = max(target['memory_min_mib'], snap['memory']-256)
+                if value < snap['memory']:
+                    return 'memory', value
         if snap["cpu"] < min(target["cpu_max"], snap["cpu_ceiling"]):
             step = 1 if target["cpu_method"] == "hotplug" else .5
             cpu_budget = max(0, (100-cfg["monitor"]["cpu_reserve_percent"]-cfg["monitor"]["recovery_cpu_percent"]-record["cpu_percent"])/100*(os.cpu_count() or 1))
             if cpu_budget >= step:
                 return "cpu", min(target["cpu_max"], snap["cpu_ceiling"], snap["cpu"]+step)
-        if target["manage_memory"] and snap["memory_safe"]:
+        if target["manage_memory"] and snap["memory_safe"] and not target.get('memory_autoscale'):
             ceiling = min(target["memory_max_mib"], snap.get("memory_ceiling", float("inf")))
             if snap["memory"] < ceiling and record["ram_available_mib"] - 256 >= record["ram_reserve_mib"] + cfg["monitor"]["recovery_ram_mib"]:
                 return "memory", min(ceiling, snap["memory"]+256)

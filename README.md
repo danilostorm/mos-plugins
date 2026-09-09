@@ -1,6 +1,20 @@
-# MOS Resource Guardian — 0.4.0
+# MOS Resource Guardian — 0.5.0
 
-Plugin de gerenciamento local de CPU/RAM para MOS, com painel nativo, daemon Python, pacote Debian e controles opt-in para libvirt, Docker e LXC. A versão 0.4.0 é uma **prévia para validação em hardware MOS**.
+## Novidade: integração automática com VMs do MOS
+
+No Guardian, marque **Usar CPU/RAM da tela de criação e edição como tetos**, escolha o modo e salve uma vez. As VMs KVM persistentes atuais e futuras são descobertas por UUID. Configurar 16 CPUs e 16 GB no editor MOS fornece automaticamente esses tetos ao Guardian, sem duplicar cadastro. A definição salva é relida a cada 10 segundos; o balloon atual não altera o teto importado.
+
+O painel permite excluir VMs; configurações manuais por nome/UUID têm precedência. A atualização não ativa essa opção automaticamente. Em observação, só consulta e mostra propostas; no modo automático, também habilita estatísticas live do balloon.
+
+CPU usa quota global mantendo a quantidade de vCPUs selecionada. **Core Pinning deve ficar desmarcado no MOS** para o escalonador escolher os processadores físicos. Pinning existente é informado e preservado, nunca removido silenciosamente. RAM dinâmica requer balloon virtio e estatísticas recentes. Para 16 GiB, o mínimo automático é 4 GiB; para outras capacidades é metade do teto, limitado à faixa 1–4 GiB e nunca acima do teto. Para mudar o mínimo, use um alvo manual.
+
+Com margem no host, RAM sobe quando a folga do guest fica abaixo de 512 MiB e desce gradualmente quando supera 1280 MiB, respeitando o piso. Entre esses valores mantém a alocação. Mantém cooldown e verificação da versão anterior. Guests sem balloon ou com hugepages/memória travada recebem apenas controle de CPU.
+
+**Não injeta controles no formulário nativo nem reescreve XML.** A integração é pela leitura da definição salva: continua funcionando após editar pelo MOS, sem depender de alterações personalizadas que o editor pode apagar. A VM ainda pode iniciar com toda a RAM configurada antes do ajuste por balloon; não existe reserva/admissão automática de recursos no momento do boot.
+
+Atualize para **v0.5.0** pelo MOS e recarregue o painel. Instruções anteriores abaixo continuam válidas, substituindo a versão do pacote por 0.5.0.
+
+Plugin de gerenciamento local de CPU/RAM para MOS, com painel nativo, daemon Python, pacote Debian e controles opt-in para libvirt, Docker e LXC. A versão 0.5.0 é uma **prévia para validação em hardware MOS**.
 
 ## Fases implementadas
 
@@ -16,7 +30,7 @@ O daemon inicia em **Observar**, sem alvos. Cadastre os alvos, revise as decisõ
 ## Instalação pelo MOS Hub
 
 1. Adicione `https://github.com/danilostorm/mos-plugins` aos repositórios do MOS Hub.
-2. Procure **MOS Resource Guardian** e selecione a release `v0.4.0` (pré-release).
+2. Procure **MOS Resource Guardian** e selecione a release `v0.5.0` (pré-release).
 3. Abra **Plugins → MOS Resource Guardian**.
 4. Escolha um diretório de histórico em disco persistente, como `/mnt/SEU-DISCO/guardian`, salve e reinicie com `/etc/init.d/mos-resource-guardian restart`.
 5. Cadastre nomes/IDs de VMs e containers, limites e prioridades. Observe as decisões antes de ativar o modo automático.
@@ -30,7 +44,7 @@ Releases são geradas pelo GitHub Actions depois dos testes. Confira [Actions](h
 Baixe o pacote em [Releases](https://github.com/danilostorm/mos-plugins/releases) e execute como root:
 
 ```sh
-apt install ./mos-resource-guardian_0.4.0_all.deb
+apt install ./mos-resource-guardian_0.5.0_all.deb
 /etc/init.d/mos-resource-guardian status
 ```
 

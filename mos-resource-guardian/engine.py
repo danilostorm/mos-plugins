@@ -153,6 +153,11 @@ class Engine:
         self.inventory = inventory
         if cfg["mode"] == "automatic" and not duplicate and not self.unresolved() and candidates and time.monotonic()-self.last_action >= cfg["cooldown_seconds"]:
             target, snap, resource, value = candidates[0]
+            if cfg.get('auto_vms') and target.get('memory_autoscale') and target['kind'] == 'vm':
+                from autovm import definition
+                saved, _ = definition(self.adapter.virsh(target, 'dumpxml', '--inactive'))
+                if saved['cpu_max'] != target['cpu_max'] or saved['memory_max_mib'] != target['memory_max_mib']:
+                    return prediction  # Editor changed limits; wait for rediscovery, no journal/write.
             if time.time()-record["timestamp"] > max(15, cfg["monitor"]["interval_seconds"]*3):
                 return prediction
             if resource == "memory" and target["kind"] == "vm" and value > snap["memory"]:
