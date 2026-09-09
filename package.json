@@ -1,0 +1,1 @@
+{"name":"mos-resource-guardian","private":true,"type":"module","scripts":{"test":"node --test page/tests/*.test.js"}}

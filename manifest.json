@@ -1,0 +1,12 @@
+{
+  "name": "plugins",
+  "displayName": "MOS Resource Guardian",
+  "description": "CPU and memory margins, VM/Docker/LXC control and predictive profiles",
+  "version": "0.4.0",
+  "icon": "mdi-shield-check",
+  "author": "danilostorm",
+  "homepage": "https://github.com/danilostorm/mos-plugins",
+  "settings": true,
+  "driver": false,
+  "widget": false
+}

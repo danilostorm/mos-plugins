@@ -1,0 +1,57 @@
+name: Test and package Resource Guardian
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-package:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m unittest discover -s mos-resource-guardian/tests -v
+      - run: node --test page/tests/*.test.js
+      - run: sh -n packaging/init packaging/postinst packaging/prerm packaging/postrm
+      - run: bash -n functions
+      - run: python3 packaging/build.py
+      - id: version
+        run: python3 -c 'import json,os; f=open(os.environ["GITHUB_OUTPUT"],"a"); f.write("version=v"+json.load(open("manifest.json"))["version"]+"\n")'
+      - run: dpkg-deb --info dist/*.deb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mos-resource-guardian
+          path: dist/*
+  release:
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    needs: test-package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: mos-resource-guardian
+          path: dist
+      - name: Publish tested package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.test-package.outputs.version }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Version already published; keeping the existing release immutable."
+          else
+            gh release create "$RELEASE_TAG" dist/* --target "$RELEASE_COMMIT" --title "Resource Guardian $RELEASE_TAG" --generate-notes --prerelease
+          fi

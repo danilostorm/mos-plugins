@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+if [ "$1" = purge ] && command -v update-rc.d >/dev/null 2>&1; then
+  update-rc.d mos-resource-guardian remove
+fi
+# Keep history and configuration for recovery/reinstallation.

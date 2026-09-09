@@ -1,0 +1,11 @@
+{
+  "name": "MOS Resource Guardian",
+  "description": "Margens de CPU/RAM, ajustes de VM/Docker/LXC e previsão local de carga",
+  "repository": "https://github.com/danilostorm/mos-plugins",
+  "author": "danilostorm",
+  "icon": "mdi-shield-check",
+  "homepage": "https://github.com/danilostorm/mos-plugins",
+  "support": "https://github.com/danilostorm/mos-plugins/issues",
+  "settings": true,
+  "driver": false
+}

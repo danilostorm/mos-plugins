@@ -1,0 +1,11 @@
+#!/bin/bash
+# Native MOS plugin lifecycle hooks. Configuration/history survive uninstall.
+install() { /etc/init.d/mos-resource-guardian start; }
+mos_start() { /etc/init.d/mos-resource-guardian start; }
+mos_start_after_services() { /etc/init.d/mos-resource-guardian start; }
+plugin_update() { /etc/init.d/mos-resource-guardian restart; }
+mos_osupdate() { /etc/init.d/mos-resource-guardian stop; }
+uninstall() { /etc/init.d/mos-resource-guardian stop; }
+guardian_start() { /etc/init.d/mos-resource-guardian start; }
+guardian_stop() { /etc/init.d/mos-resource-guardian stop; }
+guardian_restart() { /etc/init.d/mos-resource-guardian restart; }

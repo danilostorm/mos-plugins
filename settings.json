@@ -1,0 +1,9 @@
+{
+  "mode": "observe",
+  "profile": "automatic",
+  "cooldown_seconds": 60,
+  "forecast_seconds": 60,
+  "forecast_samples": 12,
+  "monitor": {},
+  "targets": []
+}
