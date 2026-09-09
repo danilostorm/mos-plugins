@@ -1,0 +1,12 @@
+{
+  "interval_seconds": 5,
+  "retention_days": 7,
+  "ram_reserve_mib": 2048,
+  "ram_reserve_percent": 10,
+  "emergency_ram_mib": 1024,
+  "cpu_reserve_percent": 15,
+  "recovery_cpu_percent": 5,
+  "recovery_ram_mib": 512,
+  "pressure_samples": 3,
+  "recovery_samples": 6
+}
