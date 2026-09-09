@@ -135,7 +135,7 @@ class JournalTests(unittest.TestCase):
         self.db = sqlite3.connect(":memory:")
         self.a = FakeAdapter()
         self.e = Engine(self.db, self.a)
-        self.e.last_action = 0
+        self.e.last_action = time.monotonic() - 120
         self.cfg = validate({"mode": "automatic", "targets": [target()]})
 
     def tearDown(self):
@@ -158,7 +158,7 @@ class JournalTests(unittest.TestCase):
     def test_failure_blocks_all_further_changes(self):
         self.a.fail = True
         self.e.tick(self.cfg, record(), [])
-        self.e.last_action = 0
+        self.e.last_action = time.monotonic() - 120
         self.e.tick(self.cfg, record(), [])
         self.assertEqual(len(self.a.calls), 1)
         self.assertEqual(self.e.unresolved(), 1)
@@ -166,7 +166,7 @@ class JournalTests(unittest.TestCase):
     def test_crash_intent_is_blocked_after_restart(self):
         self.e.send(target(), self.a.s, "cpu", 3)
         restarted = Engine(self.db, self.a)
-        restarted.last_action = 0
+        restarted.last_action = time.monotonic() - 120
         restarted.tick(self.cfg, record(), [])
         self.assertEqual(len(self.a.calls), 1)
 
