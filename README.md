@@ -1,4 +1,15 @@
-# MOS Resource Guardian — 0.6.0
+# MOS Resource Guardian — 0.6.1
+
+## Correção de configuração e novo fluxo (v0.6.1)
+
+O painel anterior enviava JSON literal em argumentos da API de plugins, que bloqueia `{}`, `[]` e outros metacaracteres. Agora usa um argumento de dados codificado em Base64, decodificado como UTF-8/JSON e submetido à mesma validação restrita do serviço. Nenhum conteúdo é executado. Erros de gravação permanecem visíveis durante as atualizações do painel; o sucesso só aparece depois de uma releitura confirmar os valores enviados. A atualização do pacote reinicia o daemon para carregar o protocolo novo.
+
+1. Atualize para **v0.6.1** e recarregue o painel com Ctrl+F5.
+2. As VMs aparecem mesmo com o gerenciamento desligado. **Buscar VMs agora** refaz a consulta sem mudar recursos.
+3. Ative **Gerenciar automaticamente as VMs do MOS**, escolha **Aplicar automaticamente** e selecione as VMs e a opção de afinidade desejada.
+4. Clique **Salvar configuração** e aguarde **Configuração salva e confirmada pelo serviço**.
+
+O painel distingue alterações pendentes, nenhuma VM encontrada e falha na descoberta. Reservas e cadastros manuais estão em **Opções avançadas**. A consulta usa VMs KVM persistentes em `qemu:///system`; erros do libvirt são exibidos no painel. Testes cobrem o filtro de argumentos do MOS, confirmação da gravação, persistência após recarregar o serviço e descoberta sem habilitar ajustes. Validação no servidor MOS ainda é necessária.
 
 ## CPU automática por VM (v0.6.0)
 

@@ -51,10 +51,6 @@ class AutoVM:
         self.polling = {}
 
     def resolve(self, cfg):
-        if not cfg['auto_vms']:
-            self.cached, self.catalog = [], []
-            self.last = -float('inf')
-            return cfg
         if time.monotonic()-self.last >= 10:
             targets, catalog = [], []
             try:
@@ -77,6 +73,8 @@ class AutoVM:
                 catalog = [dict(error=str(exc)[:200])]
                 targets = []  # Never reuse stale limits after failed discovery.
             self.cached, self.catalog, self.last = targets, catalog, time.monotonic()
+        if not cfg['auto_vms']:
+            return cfg  # Discovery is read-only; management still requires opt-in.
         resolved = copy.deepcopy(cfg)
         manual = {t['id'] for t in cfg['targets'] if t['kind'] == 'vm'}
         names = {x.get('uuid'): x.get('name') for x in self.catalog}

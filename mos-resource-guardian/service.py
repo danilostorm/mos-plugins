@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """MOS lifecycle and private Unix-socket API. No listening TCP port."""
 import argparse
+import base64
 import copy
 import fcntl
 import json
@@ -57,6 +58,7 @@ class Application:
         self.restore = False
         self.cancel_restore = False
         self.status = dict(state="starting", mode=self.cfg["mode"], timestamp=0)
+        self.discovery = AutoVM()
 
     def request(self, data):
         op = data.get("op")
@@ -66,6 +68,11 @@ class Application:
             return result
         if op == "config":
             return copy.deepcopy(self.cfg)
+        if op == "discover":
+            with self.lock:
+                self.discovery.last = -float('inf')
+                self.discovery.resolve(self.cfg)
+                return dict(vms=self.discovery.catalog)
         if op == "history":
             db = sqlite3.connect(Path(self.database).resolve().as_uri()+"?mode=ro", uri=True)
             try:
@@ -92,7 +99,7 @@ class Application:
         history = History(self.database)
         engine = Engine(history.db)
         affinity = Affinity(history.db)
-        automatic_vms = AutoVM()
+        automatic_vms = self.discovery
         monitor, policy = Monitor(), Policy(self.cfg["monitor"])
         rows = [json.loads(r[0]) for r in history.db.execute("SELECT payload FROM samples ORDER BY ts DESC LIMIT 120")][::-1]
         try:
@@ -185,7 +192,7 @@ def serve(config_path, database, sockpath):
 def client(op, sockpath=SOCKET, payload=None):
     request = dict(op=op)
     if payload is not None:
-        request["config"] = json.loads(payload)
+        request["config"] = decode_config(payload)
     with socket.socket(socket.AF_UNIX) as conn:
         conn.settimeout(60)
         conn.connect(sockpath)
@@ -197,9 +204,18 @@ def client(op, sockpath=SOCKET, payload=None):
         return result["result"]
 
 
+def decode_config(payload):
+    # A data-only transport for MOS query arguments; decoded JSON still passes validate().
+    if payload.startswith('b64:'):
+        if len(payload) > 80000:
+            raise ValueError('Configuration too large')
+        payload = base64.b64decode(payload[4:], validate=True).decode('utf-8')
+    return json.loads(payload)
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["serve", "status", "history", "config", "configure", "pause", "automatic", "observe", "restore", "validate"])
+    parser.add_argument("command", choices=["serve", "status", "history", "config", "configure", "discover", "pause", "automatic", "observe", "restore", "validate"])
     parser.add_argument("payload", nargs="?")
     parser.add_argument("--config-path", default=CONFIG)
     parser.add_argument("--database", default=DATABASE)

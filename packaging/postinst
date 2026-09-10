@@ -2,5 +2,5 @@
 set -eu
 if [ "$1" = configure ]; then
   if command -v update-rc.d >/dev/null 2>&1; then update-rc.d mos-resource-guardian defaults; fi
-  /etc/init.d/mos-resource-guardian start
+  /etc/init.d/mos-resource-guardian restart
 fi

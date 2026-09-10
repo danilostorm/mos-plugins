@@ -6,7 +6,7 @@ from service import client
 import json
 
 try:
-    if len(sys.argv) < 2 or sys.argv[1] not in ("status", "history", "config", "configure", "pause", "automatic", "observe", "restore"):
+    if len(sys.argv) < 2 or sys.argv[1] not in ("status", "history", "config", "configure", "discover", "pause", "automatic", "observe", "restore"):
         raise ValueError("Invalid operation")
     op = sys.argv[1]
     if len(sys.argv) != (3 if op == "configure" else 2):

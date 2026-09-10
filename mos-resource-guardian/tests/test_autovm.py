@@ -69,10 +69,13 @@ class AutomaticVMTests(unittest.TestCase):
         self.cfg['targets'] = [t]
         self.assertEqual(len(self.a.resolve(self.cfg)['targets']), 1)
 
-    def test_disabled_discovery_makes_no_calls(self):
+    def test_disabled_management_still_discovers_without_targets_or_writes(self):
         self.cfg['auto_vms'] = False
-        self.a.resolve(self.cfg)
-        self.assertEqual(self.calls, [])
+        out = self.a.resolve(self.cfg)
+        self.a.enable_stats(out)
+        self.assertEqual(out['targets'], [])
+        self.assertEqual(self.a.catalog[0]['name'], 'DANILO')
+        self.assertTrue(all(c[3] in ('list', 'dumpxml') for c in self.calls))
 
     def test_failed_discovery_never_reuses_old_targets(self):
         self.a.resolve(self.cfg)

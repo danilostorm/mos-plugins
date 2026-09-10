@@ -1,5 +1,5 @@
 // MOS federation contract: reuse the host Vue runtime; no CDN or second Vue copy.
-import { createPlugin } from './component.js';
+import { createPlugin } from './component.js?v=0.6.1';
 export async function get(name) {
   if (name !== './Plugin') throw new Error('Unknown module');
   const shared = globalThis.__federation_shared__?.default?.vue;
