@@ -19,6 +19,7 @@ from guardian import Monitor, Policy, History
 from control import validate, DEFAULT
 from engine import Engine
 from autovm import AutoVM
+from affinity import Affinity
 
 CONFIG = "/boot/optional/plugins/plugins/settings.json"
 SOCKET = "/run/mos-resource-guardian/api.sock"
@@ -90,6 +91,7 @@ class Application:
     def loop(self):
         history = History(self.database)
         engine = Engine(history.db)
+        affinity = Affinity(history.db)
         automatic_vms = AutoVM()
         monitor, policy = Monitor(), Policy(self.cfg["monitor"])
         rows = [json.loads(r[0]) for r in history.db.execute("SELECT payload FROM samples ORDER BY ts DESC LIMIT 120")][::-1]
@@ -110,10 +112,12 @@ class Application:
                             engine.restore_requested = False
                             self.cancel_restore = False
                         engine.restore_requested = engine.restore_requested or self.restore
+                        affinity.tick(cfg, restore=engine.restore_requested)
                         self.restore = False
                         prediction = engine.tick(cfg, record, rows)
                         record.update(mode=cfg["mode"], forecast=prediction,
                                       auto_vms=automatic_vms.catalog,
+                                      affinity=affinity.status,
                                       database=self.database,
                                       restart_required=str(Path(cfg["data_directory"])/"guardian.db") != self.database,
                                       profile=prediction["profile"] if cfg["profile"] == "automatic" else cfg["profile"],

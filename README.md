@@ -1,4 +1,14 @@
-# MOS Resource Guardian — 0.5.0
+# MOS Resource Guardian — 0.6.0
+
+## CPU automática por VM (v0.6.0)
+
+Atualize para v0.6.0 e recarregue o painel. Na integração automática, marque **CPU automática — liberar afinidade** na VM desejada, selecione **Aplicar automaticamente** e clique **Salvar e aplicar política**. Crie a VM normalmente no MOS com a quantidade de vCPUs e os núcleos que o editor exigir.
+
+O Guardian libera a afinidade das vCPUs para as CPUs online do host via `virsh vcpupin --live`, mantendo a quantidade de vCPUs e a política de quota. Não altera afinidade do emulador/I/O, isolamento do host ou XML persistente. Restrições externas de cgroup continuam valendo. Uma VM recém-iniciada usa inicialmente o pinning salvo pelo MOS; o daemon reaplica a opção no próximo ciclo. Não é um balanceador NUMA.
+
+Os mapas originais ficam no SQLite antes de cada alteração. Desmarcar a opção e salvar, excluir a VM da integração ou desativar a integração restaura a afinidade original da instância em execução; **Restaurar limites anteriores** também solicita restauração. Pausar/observar mantém a afinidade aplicada. Alterações externas geram diagnóstico e não são sobrescritas. VM parada aguarda o próximo ciclo em execução; uma nova instância usa seus próprios mapas originais. Mantenha o diretório do histórico em armazenamento persistente para preservar a restauração após reiniciar o daemon.
+
+Sem acesso ao servidor, esta versão tem validação automatizada; resta validar em hardware MOS.
 
 ## Novidade: integração automática com VMs do MOS
 
@@ -6,7 +16,7 @@ No Guardian, marque **Usar CPU/RAM da tela de criação e edição como tetos**,
 
 O painel permite excluir VMs; configurações manuais por nome/UUID têm precedência. A atualização não ativa essa opção automaticamente. Em observação, só consulta e mostra propostas; no modo automático, também habilita estatísticas live do balloon.
 
-CPU usa quota global mantendo a quantidade de vCPUs selecionada. **Core Pinning deve ficar desmarcado no MOS** para o escalonador escolher os processadores físicos. Pinning existente é informado e preservado, nunca removido silenciosamente. RAM dinâmica requer balloon virtio e estatísticas recentes. Para 16 GiB, o mínimo automático é 4 GiB; para outras capacidades é metade do teto, limitado à faixa 1–4 GiB e nunca acima do teto. Para mudar o mínimo, use um alvo manual.
+CPU usa quota global mantendo a quantidade de vCPUs selecionada. Pinning existente é preservado por padrão; a opção explícita CPU automática libera a afinidade em execução. RAM dinâmica requer balloon virtio e estatísticas recentes. Para 16 GiB, o mínimo automático é 4 GiB; para outras capacidades é metade do teto, limitado à faixa 1–4 GiB e nunca acima do teto. Para mudar o mínimo, use um alvo manual.
 
 Com margem no host, RAM sobe quando a folga do guest fica abaixo de 512 MiB e desce gradualmente quando supera 1280 MiB, respeitando o piso. Entre esses valores mantém a alocação. Mantém cooldown e verificação da versão anterior. Guests sem balloon ou com hugepages/memória travada recebem apenas controle de CPU.
 
@@ -63,7 +73,7 @@ Para MOS com rootfs recriado no boot, prefira o Hub: ele preserva o pacote e os 
 
 ## Compatibilidade
 
-**VM:** libvirt em `qemu:///system`. Quota global exige `global_period/global_quota` em `virsh schedinfo`. Hotplug depende da configuração da VM; remoção exige vCPU declarada hotpluggable. Não altera XML persistente, topologia, pinning ou máximo de CPUs. Restaure os limites antes de trocar quota por hotplug ou vice-versa.
+**VM:** libvirt em `qemu:///system`. Quota global exige `global_period/global_quota` em `virsh schedinfo`. Hotplug depende da configuração da VM; remoção exige vCPU declarada hotpluggable. Não altera XML persistente, topologia ou máximo de CPUs. Afinidade em execução só muda com a opção explícita CPU automática. Restaure os limites antes de trocar quota por hotplug ou vice-versa.
 
 Balloon requer virtio, driver no guest e `dommemstat` com `actual`, `usable` e `last_update` de até 30 segundos. Ative estatísticas, se necessário:
 

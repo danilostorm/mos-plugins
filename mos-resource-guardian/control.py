@@ -12,7 +12,7 @@ from guardian import config as monitor_config
 
 DEFAULT = dict(mode="observe", profile="automatic", cooldown_seconds=60,
                forecast_seconds=60, forecast_samples=12, targets=[], monitor={},
-               data_directory="/var/lib/mos-resource-guardian", auto_vms=False, auto_vm_exclude=[])
+               data_directory="/var/lib/mos-resource-guardian", auto_vms=False, auto_vm_exclude=[], free_affinity=[])
 
 
 def number(v, lo, hi, key):
@@ -24,6 +24,8 @@ def validate(data):
     if not isinstance(data, dict) or set(data) - set(DEFAULT):
         raise ValueError("Unknown configuration fields")
     c = dict(copy.deepcopy(DEFAULT), **copy.deepcopy(data))
+    if not isinstance(c['free_affinity'], list) or len(c['free_affinity']) > 32 or any(not isinstance(x, str) or not re.fullmatch(r'[0-9a-fA-F-]{36}', x) for x in c['free_affinity']):
+        raise ValueError('Invalid affinity VM UUIDs')
     if type(c['auto_vms']) is not bool or not isinstance(c['auto_vm_exclude'], list) or any(not isinstance(x, str) or not re.fullmatch(r'[0-9a-fA-F-]{36}', x) for x in c['auto_vm_exclude']):
         raise ValueError('Invalid automatic VM settings')
     directory = c["data_directory"]

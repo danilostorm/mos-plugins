@@ -84,7 +84,7 @@ export function createPlugin({ h, ref, onMounted, onUnmounted }) {
           h('label', ['Usar CPU/RAM da tela de criação e edição como tetos', h('input', {
             type: 'checkbox', checked: config.value.auto_vms, onChange: e => { config.value.auto_vms = e.target.checked; }
           })]),
-          h('p', 'Ative uma vez para incluir VMs KVM atuais e futuras, sem cadastro duplicado. A RAM varia conforme a demanda quando o driver balloon fornece estatísticas. Para CPU sem fixação, deixe Core Pinning desmarcado no MOS. Pinning existente é preservado.'),
+          h('p', 'Crie a VM no MOS com a quantidade de CPU/RAM desejada e selecione os núcleos exigidos pelo editor. Ative CPU automática abaixo para liberar a afinidade das vCPUs em execução. A RAM dinâmica depende das estatísticas do balloon.'),
           config.value.auto_vms && h('div', (state.value?.auto_vms || []).map(vm => h('div', { class: 'rg-card' }, [
             h('b', vm.name || vm.uuid || 'Descoberta'),
             h('p', vm.error || (vm.cpu_max + ' vCPUs • RAM até ' + fmt(vm.memory_max_mib / 1024) + ' GiB • mínimo automático ' + fmt(vm.memory_min_mib / 1024) + ' GiB')),
@@ -92,9 +92,14 @@ export function createPlugin({ h, ref, onMounted, onUnmounted }) {
             vm.uuid && h('label', ['Gerenciar esta VM', h('input', { type: 'checkbox',
               checked: !config.value.auto_vm_exclude.includes(vm.uuid),
               onChange: e => { config.value.auto_vm_exclude = e.target.checked ? config.value.auto_vm_exclude.filter(x => x !== vm.uuid) : [...new Set([...config.value.auto_vm_exclude, vm.uuid])]; }
-            })])
+            })]),
+            vm.uuid && h('label', ['CPU automática — liberar afinidade', h('input', { type: 'checkbox',
+              checked: (config.value.free_affinity || []).includes(vm.uuid),
+              onChange: e => { const ids = config.value.free_affinity || []; config.value.free_affinity = e.target.checked ? [...new Set([...ids, vm.uuid])] : ids.filter(x => x !== vm.uuid); }
+            })]),
+            vm.uuid && h('p', (state.value?.affinity || []).find(x => x.uuid === vm.uuid)?.message || 'Afinidade original até ativar e salvar em modo automático.')
           ]))),
-          h('small', 'Salvar abaixo aplica a seleção. Desativar uma VM mantém os limites já aplicados; use Restaurar para devolvê-los.'),
+          h('small', 'Salvar abaixo aplica a seleção. Desmarcar CPU automática restaura a afinidade original enquanto a VM estiver ligada. CPU/RAM: use Restaurar limites anteriores. Pausar mantém a afinidade aplicada.'),
           h('h3', 'Política do host'),
           h('div', { class: 'rg-grid' }, [
             select('Modo', config.value, 'mode', [['observe', 'Observar / simular'], ['automatic', 'Aplicar automaticamente'], ['paused', 'Pausado']]),

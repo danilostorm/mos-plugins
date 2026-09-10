@@ -38,7 +38,7 @@ def definition(xml):
     return target, dict(uuid=uuid, name=root.findtext('name', uuid), cpu_max=cpus,
                         memory_max_mib=ceiling, memory_min_mib=target['memory_min_mib'],
                         pinned=pinned, memory_supported=safe,
-                        note='Pinning existente preservado; desmarque no editor para distribuição livre.' if pinned else
+                        note='Pinning salvo no MOS; CPU automática pode liberar a afinidade em execução.' if pinned else
                              'Balloon indisponível ou memória especial; apenas CPU.' if not safe else 'Limites sincronizados do MOS.')
 
 
